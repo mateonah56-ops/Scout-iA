@@ -1,24 +1,388 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scout-iA Application</title>
-    <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ScoutAI — Inteligencia de Fichajes</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080c10;
+    --surface: #0e1318;
+    --surface2: #141c24;
+    --border: #1e2d3d;
+    --accent: #00e5a0;
+    --accent2: #ff6b35;
+    --text: #c8d8e8;
+    --text-dim: #5a7a94;
+    --text-bright: #edf4fa;
+    --gold: #f0c040;
+    --red: #ff4560;
+    --green: #00e5a0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; min-height: 100vh; overflow-x: hidden; }
+  body::before { content: ''; position: fixed; inset: 0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E"); pointer-events: none; z-index: 9999; opacity: 0.4; }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 18px 40px; border-bottom: 1px solid var(--border); background: linear-gradient(180deg, #0a1520 0%, transparent 100%); position: sticky; top: 0; z-index: 100; backdrop-filter: blur(12px); }
+  .logo { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 4px; color: var(--accent); }
+  .logo span { color: var(--text-dim); font-size: 12px; display: block; letter-spacing: 6px; margin-top: -4px; }
+  .status-bar { display: flex; gap: 24px; align-items: center; font-size: 11px; color: var(--text-dim); letter-spacing: 1px; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: pulse 2s infinite; display: inline-block; margin-right: 6px; }
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.3} }
+  .app { display: grid; grid-template-columns: 380px 1fr; min-height: calc(100vh - 64px); }
+  .sidebar { border-right: 1px solid var(--border); padding: 32px 28px; display: flex; flex-direction: column; gap: 28px; background: var(--surface); overflow-y: auto; }
+  .section-title { font-family: 'Bebas Neue', sans-serif; font-size: 13px; letter-spacing: 3px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
+  .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  label { font-size: 10px; letter-spacing: 2px; color: var(--text-dim); text-transform: uppercase; display: block; margin-bottom: 6px; }
+  input, select, textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border); color: var(--text-bright); font-family: 'DM Mono', monospace; font-size: 13px; padding: 10px 14px; border-radius: 4px; outline: none; transition: border-color .2s, box-shadow .2s; appearance: none; }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,229,160,.1); }
+  select option { background: var(--surface2); }
+  .field { margin-bottom: 16px; }
+  .range-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .tag-group { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tag { padding: 5px 12px; border: 1px solid var(--border); border-radius: 2px; font-size: 10px; letter-spacing: 1px; cursor: pointer; transition: all .15s; color: var(--text-dim); text-transform: uppercase; }
+  .tag:hover { border-color: var(--accent); color: var(--accent); }
+  .tag.active { border-color: var(--accent); background: rgba(0,229,160,.1); color: var(--accent); }
+  .btn-scout { width: 100%; padding: 16px; background: var(--accent); color: #080c10; border: none; font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 4px; cursor: pointer; border-radius: 4px; transition: all .2s; display: flex; align-items: center; justify-content: center; gap: 10px; }
+  .btn-scout:hover { background: #00ffb3; box-shadow: 0 0 24px rgba(0,229,160,.4); transform: translateY(-1px); }
+  .btn-scout:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+  .main { padding: 32px 40px; overflow-y: auto; }
+  .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 16px; opacity: .4; }
+  .empty-state .big-icon { font-size: 72px; line-height: 1; }
+  .empty-state p { font-family: 'Fraunces', serif; font-size: 20px; color: var(--text-dim); font-style: italic; text-align: center; }
+  .results-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 28px; }
+  .results-title { font-family: 'Bebas Neue', sans-serif; font-size: 32px; letter-spacing: 2px; color: var(--text-bright); }
+  .results-meta { font-size: 11px; color: var(--text-dim); letter-spacing: 1px; }
+  .players-grid { display: flex; flex-direction: column; gap: 16px; }
+  .player-card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 24px; display: grid; grid-template-columns: 64px 1fr auto; gap: 20px; align-items: start; transition: all .2s; position: relative; overflow: hidden; animation: slideIn .4s ease both; }
+  @keyframes slideIn { from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)} }
+  .player-card:hover { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(0,229,160,.2), inset 0 0 40px rgba(0,229,160,.02); }
+  .player-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent); opacity: 0; transition: opacity .2s; }
+  .player-card:hover::before { opacity: 1; }
+  .rank-badge { width: 64px; height: 64px; border-radius: 50%; background: var(--surface2); border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--text-dim); flex-shrink: 0; }
+  .rank-badge.top { border-color: var(--gold); color: var(--gold); }
+  .rank-badge.second { border-color: var(--text-dim); color: var(--text-dim); }
+  .rank-badge.third { border-color: var(--accent2); color: var(--accent2); }
+  .player-name { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 600; color: var(--text-bright); margin-bottom: 2px; }
+  .player-meta { font-size: 11px; color: var(--text-dim); letter-spacing: 1px; margin-bottom: 12px; }
+  .player-meta span { margin-right: 14px; }
+  .stats-row { display: flex; gap: 20px; flex-wrap: wrap; }
+  .stat { display: flex; flex-direction: column; gap: 2px; }
+  .stat-label { font-size: 9px; letter-spacing: 2px; color: var(--text-dim); text-transform: uppercase; }
+  .stat-value { font-size: 16px; color: var(--text-bright); font-weight: 500; }
+  .stat-value.good { color: var(--green); }
+  .stat-value.warn { color: var(--gold); }
+  .stat-value.bad { color: var(--red); }
+  .bar-chart { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+  .bar-row { display: flex; align-items: center; gap: 8px; }
+  .bar-label { font-size: 9px; color: var(--text-dim); width: 60px; text-align: right; letter-spacing: 1px; }
+  .bar-track { flex: 1; height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 2px; transition: width 1s ease; background: var(--accent); width: 0%; }
+  .bar-val { font-size: 10px; color: var(--text); width: 28px; }
+  .score-panel { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+  .match-score { font-family: 'Bebas Neue', sans-serif; font-size: 48px; line-height: 1; color: var(--accent); }
+  .match-score-label { font-size: 9px; letter-spacing: 2px; color: var(--text-dim); text-transform: uppercase; text-align: right; }
+  .price-tag { background: var(--surface2); border: 1px solid var(--border); padding: 6px 12px; border-radius: 2px; font-size: 12px; color: var(--gold); letter-spacing: 1px; }
+  .viability-badge { padding: 4px 10px; border-radius: 2px; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; font-weight: 500; }
+  .viability-badge.high { background: rgba(0,229,160,.15); color: var(--green); border: 1px solid rgba(0,229,160,.3); }
+  .viability-badge.medium { background: rgba(240,192,64,.15); color: var(--gold); border: 1px solid rgba(240,192,64,.3); }
+  .viability-badge.low { background: rgba(255,69,96,.15); color: var(--red); border: 1px solid rgba(255,69,96,.3); }
+  .ai-analysis { margin-top: 12px; padding: 12px 14px; background: var(--surface2); border-left: 2px solid var(--accent); font-family: 'Fraunces', serif; font-size: 13px; line-height: 1.6; color: var(--text); font-style: italic; }
+  .loading-overlay { display: none; position: fixed; inset: 0; background: rgba(8,12,16,.92); z-index: 500; flex-direction: column; align-items: center; justify-content: center; gap: 20px; backdrop-filter: blur(4px); }
+  .loading-overlay.active { display: flex; }
+  .loading-text { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 4px; color: var(--accent); animation: flicker 1.5s infinite; }
+  @keyframes flicker { 0%,100%{opacity:1}50%{opacity:.5} }
+  .loading-sub { font-size: 11px; color: var(--text-dim); letter-spacing: 2px; }
+  .spinner { width: 40px; height: 40px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+  .pitch-container { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 20px; margin-bottom: 24px; }
+  .pitch-title { font-family: 'Bebas Neue', sans-serif; font-size: 13px; letter-spacing: 3px; color: var(--text-dim); margin-bottom: 14px; }
+  .api-note { font-size: 10px; color: var(--text-dim); letter-spacing: 1px; padding: 10px 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; }
+  .api-note a { color: var(--accent); text-decoration: none; }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 28px; }
+  .tab { padding: 10px 20px; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .15s; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  @media(max-width:900px){.app{grid-template-columns:1fr}.sidebar{border-right:none;border-bottom:1px solid var(--border)}}
+</style>
 </head>
 <body>
-    <header>
-        <h1>Welcome to Scout-iA</h1>
-    </header>
-    <main>
-        <section>
-            <h2>Your Application Content Goes Here</h2>
-            <p>This is a basic structure for your Scout-iA application.</p>
-        </section>
-    </main>
-    <footer>
-        <p>&copy; 2026 Scout-iA. All rights reserved.</p>
-    </footer>
-    <script src="script.js"></script>
-</body>
-</html>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text">ANALIZANDO MERCADO</div>
+  <div class="loading-sub" id="loadingStatus">Consultando base de datos...</div>
+</div>
+
+<header>
+  <div class="logo">SCOUT<span style="color:var(--accent)">AI</span><span>INTELIGENCIA DE FICHAJES · BETA</span></div>
+  <div class="status-bar">
+    <span><span class="status-dot"></span>SISTEMA ACTIVO</span>
+    <span id="apiStatus" style="color:var(--gold)">MODO DEMO</span>
+    <span id="currentTime"></span>
+  </div>
+</header>
+
+<div class="app">
+  <aside class="sidebar">
+    <div>
+      <div class="section-title">Perfil del Club</div>
+      <div class="field"><label>Nombre del Club</label><input type="text" id="clubName" value="Peñarol"></div>
+      <div class="field">
+        <label>Mercado de búsqueda</label>
+        <select id="league">
+          <option value="uy">🇺🇾 Uruguay — Primera División</option>
+          <option value="ar">🇦🇷 Argentina — Primera División</option>
+          <option value="br">🇧🇷 Brasil — Série A</option>
+          <option value="es">🇪�� España — La Liga</option>
+          <option value="en">🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inglaterra — Premier League</option>
+          <option value="de">🇩🇪 Alemania — Bundesliga</option>
+          <option value="it">🇮🇹 Italia — Serie A</option>
+          <option value="fr">🇫🇷 Francia — Ligue 1</option>
+        </select>
+      </div>
+      <div class="field"><label>Presupuesto (€)</label><input type="number" id="budget" value="3000000"></div>
+    </div>
+    <div>
+      <div class="section-title">Búsqueda</div>
+      <div class="field">
+        <label>Posición requerida</label>
+        <select id="position">
+          <option value="winger">Extremo (Winger)</option>
+          <option value="striker">Delantero centro</option>
+          <option value="am">Mediocampista ofensivo</option>
+          <option value="cm">Mediocampista central</option>
+          <option value="dm">Mediocampista defensivo</option>
+          <option value="lb">Lateral izquierdo</option>
+          <option value="rb">Lateral derecho</option>
+          <option value="cb">Defensor central</option>
+          <option value="gk">Arquero</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Rango de edad</label>
+        <div class="range-group"><input type="number" id="ageMin" value="18" placeholder="Min"><input type="number" id="ageMax" value="28" placeholder="Max"></div>
+      </div>
+      <div class="field">
+        <label>Pie preferido</label>
+        <div class="tag-group" id="footTags">
+          <div class="tag active" data-val="any">Indiferente</div>
+          <div class="tag" data-val="right">Derecho</div>
+          <div class="tag" data-val="left">Zurdo</div>
+          <div class="tag" data-val="both">Ambidiestro</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="section-title">Estilo de Juego</div>
+      <div class="field">
+        <label>Prioridades tácticas (máx. 3)</label>
+        <div class="tag-group" id="styleTags">
+          <div class="tag" data-val="speed">Velocidad</div>
+          <div class="tag" data-val="technical">Técnica</div>
+          <div class="tag" data-val="physical">Físico</div>
+          <div class="tag" data-val="creative">Creatividad</div>
+          <div class="tag" data-val="pressing">Presión alta</div>
+          <div class="tag" data-val="goals">Goleador</div>
+          <div class="tag" data-val="dribbling">Desequilibrio</div>
+        </div>
+      </div>
+      <div class="field"><label>Contexto adicional</label><textarea id="notes" rows="3" placeholder="Ej: Reemplaza a un titular, necesitamos profundidad en las bandas..."></textarea></div>
+    </div>
+    <button class="btn-scout" id="scoutBtn" onclick="runScout()">⚡ INICIAR SCOUTING</button>
+    <div class="api-note">
+      💡 Modo demo activo — datos simulados de alta fidelidad.<br>
+      Para datos en tiempo real integrá tu key de <a href="https://www.api-football.com" target="_blank">API-Football</a> en el código (variable API_KEY).
+    </div>
+  </aside>
+
+  <main class="main" id="mainPanel">
+    <div class="empty-state" id="emptyState">
+      <div class="big-icon">🔭</div>
+      <p>Completá el perfil del club<br>y lanzá el scouting</p>
+    </div>
+    <div id="resultsPanel" style="display:none">
+      <div class="results-header">
+        <div>
+          <div class="results-title" id="resultsTitle">JUGADORES ENCONTRADOS</div>
+          <div class="results-meta" id="resultsMeta"></div>
+        </div>
+      </div>
+      <div class="tabs">
+        <div class="tab active" onclick="switchTab('recommendations')">Recomendaciones</div>
+        <div class="tab" onclick="switchTab('analysis')">Análisis IA</div>
+        <div class="tab" onclick="switchTab('comparison')">Comparación</div>
+      </div>
+      <div class="tab-content active" id="tab-recommendations"><div class="players-grid" id="playersGrid"></div></div>
+      <div class="tab-content" id="tab-analysis"><div id="analysisContent"></div></div>
+      <div class="tab-content" id="tab-comparison"><div id="comparisonContent"></div></div>
+    </div>
+  </main>
+</div>
+
+<script>
+const API_KEY = ''; // Tu key de api-football.com aquí para datos reales
+
+// ── BASE DE DATOS SIMULADA ──────────────────────────────────────────────────
+const DB = {
+  winger: [
+    { name:"Facundo Farías", age:23, nat:"🇦🇷", country:"Argentina", club:"Inter Miami CF", league:"MLS", value:2800000, foot:"left", stats:{goals:8,assists:11,matches:28,dribbles:4.2,keyPasses:2.8,rating:7.4}, profile:{speed:85,technical:88,physical:70,creative:84,goals:75,dribbling:87}, strengths:["Desequilibrio en 1v1","Pase filtrado","Velocidad en espacios"], weaknesses:["Definición bajo presión"] },
+    { name:"Luciano Rodríguez", age:22, nat:"🇺🇾", country:"Uruguay", club:"Liverpool FC", league:"Primera Div.", value:1500000, foot:"left", stats:{goals:9,assists:6,matches:26,dribbles:3.4,keyPasses:2.2,rating:7.3}, profile:{speed:80,technical:82,physical:74,creative:83,goals:81,dribbling:83}, strengths:["Visión de juego","Remate largo","Técnica depurada"], weaknesses:["Velocidad en tramos cortos"] },
+    { name:"Santiago Castro", age:20, nat:"🇦🇷", country:"Argentina", club:"Vélez Sársfield", league:"Primera Div.", value:3500000, foot:"right", stats:{goals:12,assists:7,matches:30,dribbles:3.8,keyPasses:2.1,rating:7.6}, profile:{speed:82,technical:83,physical:78,creative:80,goals:88,dribbling:82}, strengths:["Llegada al área","Definición","Movilidad sin balón"], weaknesses:["Juego aéreo"] },
+    { name:"Maxi Silvera", age:21, nat:"🇺🇾", country:"Uruguay", club:"Rentistas", league:"Primera Div.", value:800000, foot:"right", stats:{goals:6,assists:5,matches:24,dribbles:3.1,keyPasses:1.9,rating:7.1}, profile:{speed:88,technical:75,physical:72,creative:70,goals:68,dribbling:80}, strengths:["Velocidad explosiva","Profundidad","Trabajo defensivo"], weaknesses:["Consistencia técnica"] },
+    { name:"Joaquín Correa", age:30, nat:"🇦🇷", country:"Argentina", club:"Inter Milán (prést.)", league:"Serie A", value:4200000, foot:"left", stats:{goals:5,assists:8,matches:22,dribbles:2.9,keyPasses:1.7,rating:6.9}, profile:{speed:84,technical:81,physical:77,creative:78,goals:72,dribbling:79}, strengths:["Experiencia europea","Versatilidad"], weaknesses:["Lesiones frecuentes","Salario elevado"] },
+  ],
+  striker: [
+    { name:"Agustín Álvarez", age:23, nat:"🇺��", country:"Uruguay", club:"Toulouse FC", league:"Ligue 1", value:18000000, foot:"right", stats:{goals:16,assists:5,matches:31,dribbles:2.2,keyPasses:1.8,rating:7.5}, profile:{speed:85,technical:78,physical:80,creative:72,goals:90,dribbling:76}, strengths:["Olfato goleador","Físico potente"], weaknesses:["Precio muy elevado"] },
+    { name:"Brian Ocampo", age:22, nat:"🇺🇾", country:"Uruguay", club:"Cádiz CF", league:"Segunda Div.", value:4500000, foot:"left", stats:{goals:10,assists:7,matches:28,dribbles:3.6,keyPasses:2.3,rating:7.3}, profile:{speed:86,technical:80,physical:72,creative:78,goals:80,dribbling:85}, strengths:["Velocidad","Dribbling","Definición"], weaknesses:["Consistencia"] },
+    { name:"Emiliano Rigoni", age:31, nat:"🇦🇷", country:"Argentina", club:"San Pablo", league:"Série A", value:2000000, foot:"right", stats:{goals:9,assists:6,matches:25,dribbles:2.4,keyPasses:2.0,rating:7.0}, profile:{speed:75,technical:83,physical:75,creative:80,goals:82,dribbling:78}, strengths:["Experiencia","Técnica"], weaknesses:["Edad","Lesiones"] },
+  ],
+  am: [
+    { name:"Fabricio Díaz", age:24, nat:"🇺🇾", country:"Uruguay", club:"City Torque", league:"Primera Div.", value:1200000, foot:"right", stats:{goals:5,assists:9,matches:28,dribbles:2.4,keyPasses:3.1,rating:7.2}, profile:{speed:72,technical:84,physical:75,creative:88,goals:70,dribbling:78}, strengths:["Creatividad","Visión","Costo-beneficio"], weaknesses:["Sin exp. internacional"] },
+    { name:"Nicolás De La Cruz", age:27, nat:"🇺🇾", country:"Uruguay", club:"Flamengo", league:"Série A", value:12000000, foot:"right", stats:{goals:14,assists:9,matches:32,dribbles:2.8,keyPasses:3.2,rating:7.8}, profile:{speed:76,technical:90,physical:72,creative:91,goals:80,dribbling:85}, strengths:["Técnica excepcional","Gol desde 2da línea"], weaknesses:["Precio elevado"] },
+  ],
+  cm: [
+    { name:"Federico Valverde", age:25, nat:"🇺🇾", country:"Uruguay", club:"Real Madrid", league:"La Liga", value:120000000, foot:"right", stats:{goals:9,assists:8,matches:34,dribbles:2.0,keyPasses:2.5,rating:8.1}, profile:{speed:88,technical:87,physical:88,creative:84,goals:78,dribbling:80}, strengths:["Box-to-box élite","Gol","Pressing"], weaknesses:["Precio prohibitivo"] },
+    { name:"Cristian Olivera", age:23, nat:"🇺🇾", country:"Uruguay", club:"Galatasaray", league:"Süper Lig", value:6000000, foot:"left", stats:{goals:4,assists:7,matches:26,dribbles:2.1,keyPasses:2.4,rating:7.1}, profile:{speed:82,technical:78,physical:80,creative:76,goals:65,dribbling:76}, strengths:["Dinámico","Trabajo defensivo"], weaknesses:["Falta de continuidad"] },
+  ],
+  dm: [
+    { name:"José Luis Rodríguez", age:26, nat:"🇺🇾", country:"Uruguay", club:"Nacional", league:"Primera Div.", value:1800000, foot:"right", stats:{goals:2,assists:5,matches:29,dribbles:1.4,keyPasses:2.2,rating:7.1}, profile:{speed:74,technical:79,physical:86,creative:70,goals:55,dribbling:68}, strengths:["Recuperación","Lectura del juego"], weaknesses:["Proyección ofensiva"] },
+    { name:"Matías Vecino", age:32, nat:"🇺🇾", country:"Uruguay", club:"Lazio", league:"Serie A", value:2500000, foot:"right", stats:{goals:3,assists:4,matches:24,dribbles:1.2,keyPasses:1.8,rating:6.9}, profile:{speed:72,technical:80,physical:84,creative:72,goals:62,dribbling:70}, strengths:["Experiencia","Box-to-box"], weaknesses:["Edad"] },
+  ],
+  lb: [
+    { name:"Marcelo Saracchi", age:27, nat:"🇺🇾", country:"Uruguay", club:"Galatasaray", league:"Süper Lig", value:3500000, foot:"left", stats:{goals:1,assists:6,matches:24,dribbles:1.8,keyPasses:1.9,rating:7.0}, profile:{speed:80,technical:76,physical:79,creative:72,goals:50,dribbling:74}, strengths:["Centros","Proyección ofensiva"], weaknesses:["Marca defensiva"] },
+    { name:"Agustín Oliveros", age:22, nat:"🇦🇷", country:"Argentina", club:"Huracán", league:"Primera Div.", value:900000, foot:"left", stats:{goals:0,assists:4,matches:22,dribbles:1.5,keyPasses:1.4,rating:6.8}, profile:{speed:82,technical:72,physical:80,creative:65,goals:42,dribbling:70}, strengths:["Velocidad","Anticipación"], weaknesses:["Técnica bajo presión"] },
+  ],
+  rb: [
+    { name:"Guillermo Varela", age:32, nat:"🇺🇾", country:"Uruguay", club:"Flamengo", league:"Série A", value:2000000, foot:"right", stats:{goals:1,assists:5,matches:25,dribbles:1.6,keyPasses:1.7,rating:7.0}, profile:{speed:76,technical:78,physical:80,creative:70,goals:48,dribbling:72}, strengths:["Experiencia","Solidez"], weaknesses:["Edad"] },
+    { name:"Nahitan Nandez", age:28, nat:"🇺🇾", country:"Uruguay", club:"Cagliari", league:"Serie B", value:5000000, foot:"right", stats:{goals:3,assists:7,matches:28,dribbles:2.2,keyPasses:2.0,rating:7.2}, profile:{speed:84,technical:80,physical:85,creative:74,goals:60,dribbling:76}, strengths:["Intensidad","Versatilidad","Gol"], weaknesses:["Precio"] },
+  ],
+  cb: [
+    { name:"Ronald Araújo", age:25, nat:"🇺🇾", country:"Uruguay", club:"Barcelona", league:"La Liga", value:70000000, foot:"right", stats:{goals:3,assists:1,matches:28,dribbles:0.8,keyPasses:1.0,rating:7.4}, profile:{speed:84,technical:78,physical:92,creative:60,goals:65,dribbling:62}, strengths:["Físico élite","Jefe de área"], weaknesses:["Precio prohibitivo"] },
+    { name:"Sebastián Coates", age:33, nat:"🇺🇾", country:"Uruguay", club:"Sporting CP", league:"Primeira Liga", value:2500000, foot:"right", stats:{goals:2,assists:1,matches:22,dribbles:0.4,keyPasses:0.8,rating:7.0}, profile:{speed:68,technical:75,physical:86,creative:60,goals:60,dribbling:55}, strengths:["Liderazgo","Experiencia","Juego aéreo"], weaknesses:["Edad","Velocidad"] },
+  ],
+  gk: [
+    { name:"Sergio Rochet", age:29, nat:"🇺🇾", country:"Uruguay", club:"Nacional", league:"Primera Div.", value:3500000, foot:"right", stats:{goals:0,assists:0,matches:30,dribbles:0,keyPasses:0.4,rating:7.3}, profile:{speed:65,technical:80,physical:82,creative:70,goals:0,dribbling:40}, strengths:["Reflejos","Con el pie","Experiencia"], weaknesses:["Precio para el mercado local"] },
+    { name:"Guillermo De Amores", age:29, nat:"🇺🇾", country:"Uruguay", club:"Dep. Cali", league:"Liga BetPlay", value:1200000, foot:"right", stats:{goals:0,assists:0,matches:26,dribbles:0,keyPasses:0.2,rating:6.9}, profile:{speed:62,technical:74,physical:80,creative:65,goals:0,dribbling:35}, strengths:["Comunicación","Salida área"], weaknesses:["Reflejos en distancias cortas"] },
+  ]
+};
+
+// ── STATE ──────────────────────────────────────────────────────────────────────
+let selectedFoot = 'any', selectedStyles = [], currentResults = [];
+
+// ── INIT ───────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  setInterval(() => {
+    document.getElementById('currentTime').textContent =
+      new Date().toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  }, 1000);
+
+  document.querySelectorAll('#footTags .tag').forEach(tag => {
+    tag.addEventListener('click', () => {
+      document.querySelectorAll('#footTags .tag').forEach(t => t.classList.remove('active'));
+      tag.classList.add('active');
+      selectedFoot = tag.dataset.val;
+    });
+  });
+
+  document.querySelectorAll('#styleTags .tag').forEach(tag => {
+    tag.addEventListener('click', () => {
+      if (tag.classList.contains('active')) {
+        tag.classList.remove('active');
+        selectedStyles = selectedStyles.filter(s => s !== tag.dataset.val);
+      } else if (selectedStyles.length < 3) {
+        tag.classList.add('active');
+        selectedStyles.push(tag.dataset.val);
+      }
+    });
+  });
+});
+
+// ── SCORING ────────────────────────────────────────────────────────────────────
+function scorePlayer(p, budget, styles, foot, ageMin, ageMax) {
+  let score = 0;
+  const budgetN = parseInt(budget) || 3000000;
+
+  // Age (0-25)
+  const ageMid = (parseInt(ageMin) + parseInt(ageMax)) / 2;
+  score += Math.max(0, 25 - Math.abs(p.age - ageMid) * 4);
+
+  // Budget (0-30)
+  let viability;
+  if (p.value <= budgetN * 0.7) { viability = 'high'; score += 30; }
+  else if (p.value <= budgetN) { viability = 'medium'; score += 18; }
+  else if (p.value <= budgetN * 1.5) { viability = 'low'; score += 8; }
+  else { viability = 'low'; score += 0; }
+
+  const viabilityLabel = {high:'VIABLE',medium:'AJUSTADO',low: p.value > budgetN * 1.5 ? 'INVIABLE':'FORZAR'}[viability];
+
+  // Style (0-30)
+  const styleMap = {speed:'speed',technical:'technical',physical:'physical',creative:'creative',goals:'goals',dribbling:'dribbling',pressing:'physical'};
+  if (styles.length > 0) {
+    styles.forEach(s => { const k = styleMap[s]; if (k) score += (p.profile[k]/100)*10; });
+  } else { score += 15; }
+
+  // Foot (0-15)
+  score += (foot==='any') ? 10 : (p.foot===foot||foot==='both') ? 15 : 2;
+
+  // Rating bonus
+  score += (p.stats.rating - 6.5) * 5;
+
+  return { score: Math.min(99, Math.round(score)), viability, viabilityLabel };
+}
+
+// ── MAIN ───────────────────────────────────────────────────────────────────────
+async function runScout() {
+  const btn = document.getElementById('scoutBtn');
+  btn.disabled = true;
+
+  const club = document.getElementById('clubName').value || 'Tu club';
+  const position = document.getElementById('position').value;
+  const budget = document.getElementById('budget').value;
+  const ageMin = document.getElementById('ageMin').value;
+  const ageMax = document.getElementById('ageMax').value;
+
+  const steps = ['Buscando candidatos...','Analizando compatibilidad táctica...','Calculando viabilidad económica...','Generando informe...'];
+  showLoading(steps[0]);
+  for (let i = 1; i < steps.length; i++) { await sleep(500 + Math.random()*400); updateLoadingStatus(steps[i]); }
+  await sleep(400);
+
+  const players = (DB[position] || []).map(p => {
+    const { score, viability, viabilityLabel } = scorePlayer(p, budget, selectedStyles, selectedFoot, ageMin, ageMax);
+    return { ...p, score, viability, viabilityLabel };
+  }).sort((a,b) => b.score - a.score);
+
+  currentResults = players;
+  hideLoading();
+  renderResults(players, club, position, budget);
+  btn.disabled = false;
+}
+
+// ── RENDER ─────────────────────────────────────────────────────────────────────
+const posLabels = {winger:'Extremo',striker:'Delantero',am:'Med. Ofensivo',cm:'Med. Central',dm:'Med. Defensivo',lb:'Lat. Izquierdo',rb:'Lat. Derecho',cb:'Defensor',gk:'Arquero'};
+
+function renderResults(players, club, position, budget) {
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('resultsPanel').style.display = 'block';
+  document.getElementById('resultsTitle').textContent = `${players.length} CANDIDATOS — ${(posLabels[position]||'').toUpperCase()}`;
+  document.getElementById('resultsMeta').textContent = `Club: ${club.toUpperCase()} · Presupuesto: €${parseInt(budget).toLocaleString()} · ${new Date().toLocaleDateString('es-UY')}`;
+
+  document.getElementById('playersGrid').innerHTML = players.map((p,i) => buildCard(p,i)).join('');
+  setTimeout(() => document.querySelectorAll('.bar-fill').forEach(b => b.style.width = b.dataset.width + '%'), 120);
+
+  renderAnalysis(players, club, position, budget);
+  renderComparison(players);
+  switchTab('recommendations');
+}
+
+function buildCard(p, i) {
+  const medals = ['top','second','third'];
+  const sc = v => v >= 7.5 ? 'good' : v >= 7 ? 'warn' : 'bad';
+  const scN = (v, g, w) => v >= g ? 'good' : v >= w ? 'warn' : 'bad';
+  const bars = [['](#)
+
